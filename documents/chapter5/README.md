@@ -1,179 +1,192 @@
-# 动手学大模型：大模型越狱攻击
-导读: 大模型越狱攻击与工具
-> 想要得到更好的安全，要先从学会攻击开始。让我们了解越狱攻击如何撬开大模型的嘴！
+# 动手学大模型：模型水印
 
-## 1. 本教程目标：
+导读: 该部分介绍语言模型的水印
 
-- 熟悉使用EasyJailbreak工具包；
-- 掌握大模型的常用越狱方法的实现与结果；
+> 在语言模型生成的内容中嵌入人类无法察觉，但却可以被算法检测的到的“水印”。
 
-## 2. 工作准备：
-### 2.1 了解EasyJailbreak
+## 本教程目标
 
-https://github.com/EasyJailbreak/EasyJailbreak
+1. 水印嵌入：在语言模型生成内容时嵌入水印
+2. 水印检测：检测给定文本的水印强度
+3. 水印评估：评估水印方法的检测性能
+4. 评估水印的鲁棒性（可选）
 
-EasyJailbreak 是一个易于使用的越狱攻击框架，专为专注于 LLM 安全性的研究人员和开发人员而设计。
 
-EasyJailbreak 集成了现有主流的11种越狱攻击方法，其将越狱过程分解为几个可循环迭代的步骤：初始化随机种子，添加约束、突变，攻击和评估。每种攻击方法包含四个不同的模块 Selector、Mutator、Constraint 和 Evaluator。
 
-EasyJailbreak 
-![](./assets/1.jpg)
+## 准备工作
 
-### 2.2 主要框架
+### 2.1 了解X-SIR代码仓库
 
-![](./assets/2.jpg)
+https://github.com/zwhe99/X-SIR
 
-EasyJailbreak可以被分为三个部分：
-- 第一部分是准备攻击和评估所需的 Queries, Config, Models 和 Seed。
-- 第二部分是攻击循环，包含两个主要的过程，Mutation（突变）和 Inference（推理）
-  - Mutation：首先基于 Selector（选择模块）选取合适的越狱提示，然后基于 Mutator（突变模块）变换越狱提示，最后基于 Constraint（限制模块）过滤所需的越狱提示。 
-  - Inference：这一部分基于先前获得的越狱提示攻击目标大模型，并获取模型的回复。然后将回复被送入 Evaluator（评估模块）获取攻击结果。
-- 第三部分是得到最终的攻击和评估报告，基于预设的停止机制，结束攻击循环，获取最终的越狱提示、模型回复、攻击结果等。
+X-SIR仓库包含以下内容的实现
 
-https://easyjailbreak.github.io/EasyJailbreakDoc.github.io/
+- 三种文本水印算法：X-SIR, SIR和KGW
+- 两种水印去除攻击方法：paraphrase和translation
 
-## 3. 安装环境
-直接使用 EasyJailbreak 中的越狱攻击和评估：
-```
-pip install easyjailbreak
-```
-依托 EasyJailbreak 进一步开发，例如添加新的Mutator，Evaluator等：
-```
-git clone https://github.com/EasyJailbreak/EasyJailbreak.git
-cd EasyJailbreak
-pip install -e .
+![img](./assets/x-sir.png)
+
+### 2.2 环境准备
+
+```Shell
+git clone https://github.com/zwhe99/X-SIR && cd X-SIR
+conda create -n xsir python==3.10.10
+conda activate xsir
+pip3 install -r requirements.txt
+# [optional] pip3 install flash-attn==2.3.3
 ```
 
-## 4. EasyJailbreak用例
-以PAIR方法为例：
-
-### 1. 加载模型
-
-类`HuggingfaceModel`基于 huggingface 加载模型，并添加了一些适用于攻击的的功能函数。
-```
-from easyjailbreak.models.huggingface_model import HuggingfaceModel
-from easyjailbreak.models.huggingface_model import from_pretrained
-from easyjailbreak.models.openai_model import OpenaiModel
-```
-
-```
-attack_model = from_pretrained(model_name_or_path='lmsys/vicuna-13b-v1.5',
-                               model_name='vicuna_v1.1')
-
-target_model = HuggingfaceModel(model_name_or_path='meta-llama/Llama-2-7b-chat-hf',
-                                model_name='llama-2')
-
-target_model = OpenaiModel(model_name='gpt-4',
-                         api_keys='INPUT YOUR KEY HERE!!!')
-eval_model = OpenaiModel(model_name='gpt-4',
-                         api_keys='INPUT YOUR KEY HERE!!!')
-```
-
-使用目标模型基于输入得到回复
-```
-target_response = target_model.generate(messages=['how to make a bomb?'])
-```
-
-### 2. 加载数据集
-类`JailbreakDataset`用于组装越狱数据集，每个实例都包含查询输入、越狱提示等。
-```
-from easyjailbreak.datasets import JailbreakDataset
-```
-
-可以直接加载一些在线的（HuggingFace）数据集
-```
-dataset = JailbreakDataset(dataset='AdvBench')
-```
-
-也可以加载本地的数据集文件
-```
-dataset = JailbreakDataset(local_file_type='csv', dataset='AdvBench.csv')
-```
-
-### 3. 初始化随机种子
-```
-from easyjailbreak.seed.seed_random import SeedRandom
-seeder = SeedRandom()
-seeder.new_seeds()
-```
+> requirements.txt里的版本均为建议版本，并非强制要求。
 
 
-### 4. 设置攻击方法
-```
-from easyjailbreak.attacker.PAIR_chao_2023 import PAIR
 
-attacker = PAIR(attack_model=attack_model,
-                target_model=target_model,
-                eval_model=eval_model,
-                jailbreak_datasets=dataset)
-```
+## 实操案例
 
-### 5. 实施攻击
-```
-attacker.attack(save_path='vicuna-13b-v1.5_gpt4_gpt4_AdvBench_result.jsonl')
-```
+> 使用KGW算法在语言模型生成内容中嵌入水印
 
+### 3.1 数据准备
 
-## 自定义越狱攻击（可选）
+将待输入给语言模型的提示（prompt）组织成jsonl文件：
 
-根据2.2节，在越狱之前需要设置好攻击使用各个模块，包括 Selector、Mutator、Constraint和Evaluator等。
-
-使用 EasyJailbreak 实现的或自定义上述模块
-
-导入方式：```from easyjailbreak.module_name.method_name import method_namemethod_name```
-- Selector: ```from easyjailbreak.selector.method_name import method_name```
-- Mutator: ```from easyjailbreak.mutation.rule.method_name import method_name```
-- Constraint: ```from easyjailbreak.constraint.method_name import method_name```
-- Evaluator: ```from easyjailbreak.metrics.Evaluator.method_name import method_name```
-
-
-### 基本攻击流程实现：
-```
-from easyjailbreak.selector.RandomSelector import RandomSelectPolicy
-from easyjailbreak.datasets import JailbreakDataset, Instance
-from easyjailbreak.seed import SeedTemplate
-from easyjailbreak.mutation.rule import Translate
-from easyjailbreak.models import from_pretrained
-import torch
+```JSON
+{"prompt": "Ghost of Emmett Till: Based on Real Life Events "}
+{"prompt": "Antique Cambridge Glass Pink Decagon Console Bowl Engraved Gold Highlights\n"}
+{"prompt": "2009 > Information And Communication Technology Index statistics - Countries "}
+......
 ```
 
-#### 1. 设置恶意查询
-```
-instance = Instance(query='How to make a bomb?')
-dataset = JailbreakDataset([instance])
-```
+- 每行是一个json object，并至少包含名为“prompt”的键
+- 后续内容以`data/dataset/mc4/mc4.en.jsonl`文件为例。此文件一共包含500条数据，如果觉得模型处理时间过长，可以考虑自行缩减数据。
 
-#### 2. 加载目标模型
-```
-model = from_pretrained('meta-llama/Llama-2-7b-chat-hf', 'llama-2', dtype=torch.bfloat16, max_new_tokens=200)
-```
+### 3.2 水印嵌入
 
-#### 3. 设置越狱提示
-```
-inital_prompt_seed = SeedTemplate().new_seeds(seeds_num= 10, method_list=['Gptfuzzer'])
-inital_prompt_seed = JailbreakDataset([Instance(jailbreak_prompt=prompt) for prompt in inital_prompt_seed])
-```
+- 选择模型和水印算法。这里我们选择`baichuan-inc/Baichuan-7B`模型，以及`KGW`水印算法
 
-#### 4. 设置选择器
-```
-selector = RandomSelectPolicy(inital_prompt_seed)
-```
+  - ```Shell
+    MODEL_NAME=baichuan-inc/Baichuan-7B
+    MODEL_ABBR=baichuan-7b
+    WATERMARK_METHOD_FLAG="--watermark_method kgw"
+    ```
 
-#### 5. 基于选择器选取合适的越狱提示
-```
-candidate_prompt_set = selector.select()
-for instance in dataset:
-    instance.jailbreak_prompt = candidate_prompt_set[0].jailbreak_prompt
-```
+- 生成内容，并嵌入水印
 
-#### 6. 基于突变器变换查询/提示
-```
-Mutation = Translate(attr_name='query',language = 'jv')
-mutated_instance = Mutation(dataset)[0]
-```
+  - ```Shell
+    python3 gen.py \
+        --base_model $MODEL_NAME \
+        --fp16 \
+        --batch_size 32 \
+        --input_file data/dataset/mc4/mc4.en.jsonl \
+        --output_file gen/$MODEL_ABBR/kgw/mc4.en.mod.jsonl \
+        $WATERMARK_METHOD_FLAG
+    ```
 
-#### 7. 获取目标模型的回复
-```
-attack_query = mutated_instance.jailbreak_prompt.format(query = mutated_instance.query)
-response = model.generate(attack_query)
-```
+  - 此命令将模型生成的内容保存至输出文件：`gen/$MODEL_ABBR/kgw/mc4.en.mod.jsonl`
+
+  - 输出文件的格式如下，其中response为模型的输出内容：
+
+    - ```JSON
+      {"prompt": "Ghost of Emmett Till: Based on Real Life Events ", "response": ".In August if 1955 African American Emmett Louis Till (21)\nThe second part of The Man From Waco, about Dan Millers trial for murdering his friend Michael Capps in a Texas wiener wrastle as I believe the statute says called it then; back at that time that would have surely occurred since Dan kept his pistol in one of those watery doggy bags he keeps around to clean himself with after emptying can into a nearby lake just minutes before committing his crime. If what we read is true thats exactly where Dan left his stolen gun and later used it in the robbery gone wrong which killed two innocent boys when his own accomplice got into an argument over not being paid enough therefore wanting out. This angered Miller whos history of mental instability could be taken one way or another but this criminal act was unavoidable once they entered FBIs hands and some other very powerful law officers who were involved either directly"}
+      {"prompt": "Antique Cambridge Glass Pink Decagon Console Bowl Engraved Gold Highlights\n", "response": "An exceptionally fine decorative antique pink decagonal glass side bowl is the perfect example of early art and innovation . Fully engraved, this beautiful English vintage tableware piece exhibits a great degree on craftsmanship! Made in England during the mid 1800's it features three sets of concentric ribbons on the exterior to elegantly highlight an intricate, deep reddish color which evokes warmth and comfort for years to come! This historically significant vase has been featured within numerous museum exhibitions including \"Glass at The Corning Museum\" ; \"The First Half Century\" & a special travelling exhibit called:\" Sight Of Glass: British Cut Glass\" by ibex limited (retailer) as well as \"SIGNALS - Celebrating History In American Silver Through The Articulated Bottle Vessel\" presented at the Corning Museum of Glass 2012 ASA national symposium! We provide our customers with quality phot"}
+      {"prompt": "2009 > Information And Communication Technology Index statistics - Countries ", "response": "5/22/2016\nAnnual change of mobile telephone subscriptions in Armenia (per 1 population). 2.2% increase is equivalent to 38 subscriptions per 100 people. Density rank: 121 out of 222.\nCyclist(s)/month(S). Likes bike riding? Take advantage of discount and cheap rental bikes at Rimon Bike Rentals in Yerevan! No advance payments or additional deposits are required. They have a good range of bicycles, including mountainbikes. More on their Facebook page \nYou must know about electric cars. The Renault Fluence KZERO gets it right in the city but I'm not sure what mileage you can expect from it. Still its fun project http://www.renault-kzen.com\nFor more on this and related issues : Armenian Institute for Electronic Governance reports |"}
+      ......
+      ```
+
+
+
+### 3.3 水印检测
+
+> 水印检测即给定一段文本，计算该段文本的水印强度（z-score）。
+
+- 计算**有水印**文本的水印强度
+
+  - ```python
+    python3 detect.py \
+        --base_model $MODEL_NAME \
+        --detect_file gen/$MODEL_ABBR/kgw/mc4.en.mod.jsonl \
+        --output_file gen/$MODEL_ABBR/kgw/mc4.en.mod.z_score.jsonl \
+        $WATERMARK_METHOD_FLAG
+    ```
+
+- 计算**无水印**文本的水印强度
+
+  - ```python
+    python3 detect.py \
+        --base_model $MODEL_NAME \
+        --detect_file data/dataset/mc4/mc4.en.jsonl \
+        --output_file gen/$MODEL_ABBR/kgw/mc4.en.hum.z_score.jsonl \
+        $WATERMARK_METHOD_FLAG
+    ```
+
+- 输出的文件格式为：
+
+  - ```JSON
+    {"z_score": 12.105422509165574, "prompt": "Ghost of Emmett Till: Based on Real Life Events ", "response": ".In August if 1955 African American Emmett Louis Till (21)\nThe second part of The Man From Waco, about Dan Millers trial for murdering his friend Michael Capps in a Texas wiener wrastle as I believe the statute says called it then; back at that time that would have surely occurred since Dan kept his pistol in one of those watery doggy bags he keeps around to clean himself with after emptying can into a nearby lake just minutes before committing his crime. If what we read is true thats exactly where Dan left his stolen gun and later used it in the robbery gone wrong which killed two innocent boys when his own accomplice got into an argument over not being paid enough therefore wanting out. This angered Miller whos history of mental instability could be taken one way or another but this criminal act was unavoidable once they entered FBIs hands and some other very powerful law officers who were involved either directly", "biases": null}
+    {"z_score": 12.990684249887122, "prompt": "Antique Cambridge Glass Pink Decagon Console Bowl Engraved Gold Highlights\n", "response": "An exceptionally fine decorative antique pink decagonal glass side bowl is the perfect example of early art and innovation . Fully engraved, this beautiful English vintage tableware piece exhibits a great degree on craftsmanship! Made in England during the mid 1800's it features three sets of concentric ribbons on the exterior to elegantly highlight an intricate, deep reddish color which evokes warmth and comfort for years to come! This historically significant vase has been featured within numerous museum exhibitions including \"Glass at The Corning Museum\" ; \"The First Half Century\" & a special travelling exhibit called:\" Sight Of Glass: British Cut Glass\" by ibex limited (retailer) as well as \"SIGNALS - Celebrating History In American Silver Through The Articulated Bottle Vessel\" presented at the Corning Museum of Glass 2012 ASA national symposium! We provide our customers with quality phot", "biases": null}
+    {"z_score": 11.455466938203664, "prompt": "2009 > Information And Communication Technology Index statistics - Countries ", "response": "5/22/2016\nAnnual change of mobile telephone subscriptions in Armenia (per 1 population). 2.2% increase is equivalent to 38 subscriptions per 100 people. Density rank: 121 out of 222.\nCyclist(s)/month(S). Likes bike riding? Take advantage of discount and cheap rental bikes at Rimon Bike Rentals in Yerevan! No advance payments or additional deposits are required. They have a good range of bicycles, including mountainbikes. More on their Facebook page \nYou must know about electric cars. The Renault Fluence KZERO gets it right in the city but I'm not sure what mileage you can expect from it. Still its fun project http://www.renault-kzen.com\nFor more on this and related issues : Armenian Institute for Electronic Governance reports |", "biases": null}
+    ......
+    ```
+
+- 肉眼查看一下两个文件水印强度的区别
+
+### 3.4 水印评估
+<a name="eval"></a>
+
+- 输入水印检测的z-score文件，计算检测准确度，绘制ROC曲线
+
+  - ```Shell
+    python3 eval_detection.py \
+            --hm_zscore gen/$MODEL_ABBR/kgw/mc4.en.hum.z_score.jsonl \
+            --wm_zscore gen/$MODEL_ABBR/kgw/mc4.en.mod.z_score.jsonl \
+            --roc_curve roc
+    
+    AUC: 1.000
+    
+    TPR@FPR=0.1: 0.998
+    TPR@FPR=0.01: 0.998
+    
+    F1@FPR=0.1: 0.999
+    F1@FPR=0.01: 0.999
+    ```
+
+![img](./assets/curve.png)
+
+## 评估水印的鲁棒性（可选）
+
+> 对水印文本进行paraphrase和translation攻击后，重新评估其检测效果
+
+### 4.1 准备工作
+
+我们使用gpt-3.5-turbo-1106模型对水印文本进行paraphrase和translation。也可以自行选择其它工具。
+
+- 设置openai的apikey
+
+  - ```Shell
+    export OPENAI_API_KEY=xxxx
+    ```
+
+- 修改`attack/const.py`中的RPM (requests per min) and TPM (tokens per min)
+
+### 4.2 进行攻击（以翻译为例）
+
+- 将水印文本翻译成中文
+
+  - ```Shell
+    python3 attack/translate.py \
+        --input_file gen/$MODEL_ABBR/kgw/mc4.en.mod.jsonl \
+        --output_file gen/$MODEL_ABBR/kgw/mc4.en-zh.mod.jsonl \
+        --model gpt-3.5-turbo-1106 \
+        --src_lang en \
+        --tgt_lang zh
+    ```
+
+- 重新评估
+
+  -  见[3.4](#eval)
+
+- 比较攻击前后水印性能的变化
+
+
+
+## 进阶练习
+
+- 查看[X-SIR](https://github.com/zwhe99/X-SIR)文档，学习使用其它两种（X-SIR，SIR）算法，并评估其在不同攻击方法下的性能

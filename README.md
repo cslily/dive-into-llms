@@ -34,10 +34,10 @@
 
 ## 💡 Updates
 
-2025/04/28  感谢各位朋友们的关注和积极反馈！我们近期将从两个方面对本教程进行更新：
+2025/06/06  感谢各位朋友们的关注和积极反馈！我们从以下两个方面对本教程进行了更新：
 
 - [x] 上线国产化《大模型开发全流程》公益教程（含PPT、实验手册和视频），此处特别感谢华为昇腾社区的支持！
-- [ ] 在原系列编程实践教程的基础上进行内容更新，并增加新的主题（数学推理、GUI Agent、大模型对齐等）。预计五一假期后完工，敬请期待！
+- [x] 在原系列编程实践教程的基础上进行内容更新，并增加了新的主题（数学推理、GUI Agent、大模型对齐等）！
 
 ## 🎯 项目动机
 
@@ -45,15 +45,18 @@
 
 ## 📚 教程目录
 
-| 教程内容           | 简介                                                         | 地址                                                         |
-| ------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| 微调与部署         | 预训练模型微调与部署指南：想提升预训练模型在指定任务上的性能？让我们选择合适的预训练模型，在特定任务上进行微调，并将微调后的模型部署成方便使用的Demo！ | [[Slides](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter1/dive-tuning.pdf)] [[Tutorial](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter1/README.md)] |
-| 提示学习与思维链   | 大模型的API调用与推理指南：“AI在线求鼓励？大模型对一些问题的回答令人大跌眼镜，但它可能只是想要一句「鼓励」” | [[Slides](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter2/dive-prompting.pdf)] [[Tutorial](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter2/README.md)] |
-| 知识编辑           | 语言模型的编辑方法和工具：想操控语言模型在对指定知识的记忆？让我们选择合适的编辑方法，对特定知识进行编辑，并将对编辑后的模型进行验证！ | [[Slides](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter3/dive_edit_0410.pdf)] [[Tutorial](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter3/README.md)] |
-| 模型水印           | 语言模型的文本水印：在语言模型生成的内容中嵌入人类不可见的水印 | [[Slides](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter4/watermark.pdf)] [[Tutorial](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter4/README.md)] |
-| 越狱攻击           | 想要得到更好的安全，要先从学会攻击开始。让我们了解越狱攻击如何撬开大模型的嘴！ | [[Slides](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter5/dive-Jailbreak.pdf)]  [[Tutorial](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter5/README.md)] |
-| 多模态模型         | 作为能够更充分模拟真实世界的多模态大语言模型，其如何实现更强大的多模态理解和生成能力？多模态大语言模型是否能够帮助实现AGI？ | [[Slides](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter6/mllms.pdf)]  [[Tutorial](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter6/README.md)] |
-| 大模型智能体与安全 | 大模型智能体迈向了未来操作系统之旅。然而，大模型在开放智能体场景中能意识到风险威胁吗？ | [[Slides](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter7/agent.pdf)] [[Tutorial](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter7/README.md)] |
+| 教程内容         | 简介                                                         | 地址                                                         |
+| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 微调与部署       | 预训练模型微调与部署指南：想提升预训练模型在指定任务上的性能？让我们选择合适的预训练模型，在特定任务上进行微调，并将微调后的模型部署成方便使用的Demo！ | [[课件](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter1/dive-into-llm.pdf)] [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter1/README.md)] [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter1/dive-tuning.ipynb)] |
+| 提示学习与思维链 | 大模型的API调用与推理指南：“AI在线求鼓励？大模型对一些问题的回答令人大跌眼镜，但它可能只是想要一句「鼓励」” | [[课件](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter2/dive-into-prompting.pdf)] [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter2/README.md)] [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter2/dive-prompting.ipynb)] |
+| 知识编辑         | 语言模型的编辑方法和工具：想操控语言模型在对指定知识的记忆？让我们选择合适的编辑方法，对特定知识进行编辑，并将对编辑后的模型进行验证！ | [[课件](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter3/dive_edit_0410.pdf)] [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter3/README.md)]  [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter3/dive_edit.ipynb)] |
+| 数学推理         | 如何让大模型学会数学推理？让我们快速蒸馏一个迷你R1！         | [[课件](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter4/math.pdf)] [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter4/README.md)]  [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter4/sft_math.ipynb)] |
+| 模型水印         | 语言模型的文本水印：在语言模型生成的内容中嵌入人类不可见的水印 | [[课件](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter5/watermark.pdf)] [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter5/README.md)]  [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter5/watermark.ipynb)] |
+| 越狱攻击         | 想要得到更好的安全，要先从学会攻击开始。让我们了解越狱攻击如何撬开大模型的嘴！ | [[课件](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter6/dive-Jailbreak.pdf)] [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter6/README.md)] [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter6/dive-jailbreak.ipynb)] |
+| 多模态模型       | 作为能够更充分模拟真实世界的多模态大语言模型，其如何实现更强大的多模态理解和生成能力？多模态大语言模型是否能够帮助实现AGI？ | [[课件](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter7/mllms.pdf)]  [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter7/README.md)] [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter7/mllms.ipynb)] |
+| GUI智能体        | 想要饭来张口、解放双手？那么让我们一起来让AI Agent替你点外卖、回消息、购物比价吧！ | [[课件](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter8/GUIagent.pdf)]  [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter8/README.md)] [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter8/GUIagent.ipynb)] |
+| 智能体安全       | 大模型智能体迈向了未来操作系统之旅。然而，大模型在开放智能体场景中能意识到风险威胁吗？ | [[课件](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter9/agent.pdf)] [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter9/README.md)] [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter9/agent.ipynb)] |
+| RLHF安全对齐     | 基于PPO的RLHF实验指南：本教程十分危险，阅读后请检查你的大模型是否在冷笑。 | [[课件](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter10/RLHF.pdf)] [[教程](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter10/README.md)] [[脚本](https://github.com/Lordog/dive-into-llms/tree/main/documents/chapter10/RLHF.ipynb)] |
 
 ## 🔥 新上线：国产化《大模型开发全流程》
 
@@ -93,7 +96,7 @@
 
 **《动手学大模型》系列教程开发团队**：
 
-- 上海交通大学：[张倬胜](https://bcmi.sjtu.edu.cn/home/zhangzs/)、[袁童鑫](https://github.com/Lordog)、[马欣贝](https://scholar.google.com/citations?user=LpUi3EgAAAAJ&hl=zh-CN&oi=ao)、 [何志威](https://zwhe99.github.io)、[杜巍](https://scholar.google.com/citations?user=tFYUBLkAAAAJ&hl=en)、[赵皓东](https://dongdongzhaoup.github.io/)、[吴宗儒](https://zrw00.github.io/)； 
+- 上海交通大学：[张倬胜](https://bcmi.sjtu.edu.cn/home/zhangzs/)、[袁童鑫](https://github.com/Lordog)、[马欣贝](https://scholar.google.com/citations?user=LpUi3EgAAAAJ&hl=zh-CN&oi=ao)、 [何志威](https://zwhe99.github.io)、[杜巍](https://scholar.google.com/citations?user=tFYUBLkAAAAJ&hl=en)、[赵皓东](https://dongdongzhaoup.github.io/)、[吴宗儒](https://zrw00.github.io/)、[吴铮](https://wuzheng02.github.io/)、[董凌众](https://github.com/LZ-Dong)
 
 - 新加坡国立大学：[费豪](http://haofei.vip/)
 
