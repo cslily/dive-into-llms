@@ -1,227 +1,350 @@
-# 动手学大模型：GUI智能体构建
+# 动手学大模型：多模态大语言模型
+
+导读: 该部分介绍多模态大语言模型的常见架构以及构建方法
+
+> 大语言模型的出现让大家看到，高阶的智能在语言模态上得到了充分的体现。作为能够更充分模拟真实世界的多模态大语言模型，其如何实现更强大的多模态理解和生成能力？多模态大语言模型是否能够帮助实现AGI？
+
+
+大模型智能体迈向了未来操作系统之旅。然而，大模型在开放智能体场景中能意识到风险威胁吗？
+
+
 ## 本教程目标
-1.了解GUI智能体领域的技术路线和研究现状
 
-2.尝试基于开源模型Qwen2-VL-7B依托OS-Kairos数据集构建自适应人机交互GUI智能体的方法
+1. 熟悉多模态大语言模型的类型
+2. 掌握多模态大语言模型的通用技术框架
+3. 掌握多模态大语言模型的搭建、训练和推理
 
-3.尝试基于构建的GUI智能体进行推理
-## 1.准备工作
-### 1.1 了解GUI智能体领域的技术路线和研究现状
-阅读教程：[[Slides](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter8/GUIagent.pdf)]
 
-### 1.2 了解什么是自适应人机交互GUI智能体
-参考论文：[[Paper](https://arxiv.org/abs/2503.16465)]
 
-### 1.3 数据集准备
-本教程以OS-Kairos为例，基于此工作开源的数据集构建并推理简单的GUI智能体。
+## 1. 理论知识预备
 
-从[[Data](https://github.com/Wuzheng02/OS-Kairos)]的README.md文件中的下载链接下载数据集，并解压到环境中。
 
-数据格式示例如下：
-```json
-    {
-        "task": "打开网易云音乐，搜索《Shape of You》，并播放这首歌。",
-        "image_path": "/data1/wuzh/cloud_music/images/1736614680.6518524_1.png",
-        "list": [
-            " 打开网易云音乐  ",
-            " 点击首页顶部的搜索框  ",
-            " 输入：Shape of You  ",
-            " 选择正确的搜索结果  ",
-            " 点击歌名以播放  "
-        ],
-        "now_step": 1,
-        "previous_actions": [
-            "CLICK <point>[[381,367]]</point>"
-        ],
-        "score": 5,
-        "osatlas_action": "CLICK <point>[[454,87]]</point>",
-        "teacher_action": "CLICK <point>[[500,100]]</point>",
-        "success": false
-    },
+
+### 1.1 了解多模态大语言模型的类型
+
+- 现有多模态大语言模型的功能、模态支持分类
+
+
+> 在构建多模态大语言模型（MLLM）之前，本领域的研究者们都达成了一个共识、一个关键前提：由于规模定律和新兴现象，当前基于语言的LLM已经具有了强大的语义理解能力，这意味着语言已经成为承载智能的关键模态，所以语言智能被认为是多模态智能的枢纽。因此，几乎所有的MLLM都是建立在基于语言的LLM之上的，我这LLM作为核心决策模块，类似于大脑或中央处理器。换句话说，通过添加额外的外部非文本模态模块或编码器，LLM被赋予了多模态感知/操作能力。
+
+我们将现有的MLLM根据其模态支持、功能支持情况，划分为不同的类型。
+
+![mllm](assets/MLLM-summary.png)
+
+
+- 阅读完整教程：[[Slides](https://github.com/Lordog/dive-into-llms/blob/main/documents/chapter6/mllms.pdf)] 
+
+
+- 更多相关综述
+    - [A Survey on Multimodal Large Language Models, https://github.com/BradyFU/Awesome-Multimodal-Large-Language-Models, 2023](https://github.com/BradyFU/Awesome-Multimodal-Large-Language-Models)
+    - [MM-LLMs: Recent Advances in MultiModal Large Language Models, 2023](https://arxiv.org/pdf/2401.13601)
+
+
+### 1.2 了解多模态大语言模型的通用技术框架
+
+
+- 架构一：LLM as Task Scheduler
+
+> 目前社区存在两种常见的MLLM架构。
+第一种是“LLM作为离散调度器/控制器”的架构。如下图所示，LLM的角色是接收文本信号并向下游模块发出文本命令。系统内部的所有消息传递都是通过LLM输出的纯文本命令作为媒介进行的。不同的功能模块之间不存在交互。
+
+
+![Architecture1](assets/Architecture1.png)
+
+- 架构二：LLM as Joint Part of System
+
+> 第二种架构，编码器-LLM-解码器框架。
+这也是目前最流行的架构。其中LLM的角色是感知多模态信息，并在一个编码器-LLM-解码器的结构中自行做出响应和操作。因此，这个架构跟第一章架构的关键区别在于：LLM作为系统的关键联合部分，直接从外部接收多模态信息，并以更顺畅的方式委派指令给解码器/生成器。在编码器-LLM-解码器框架中，如下图所示，编码器处理来自多个模态的编码信号，LLM充当核心决策者，而解码器管理多模态输出。
+
+![Architecture2](assets/Architecture2.png)
+
+
+
+
+
+## 2. 上手实践通用多模态大语言模型
+
+> 实践“任意模态到任意模态”的通用多模态大语言模型的构建过程
+
+
+### 2.1 面向通用统一的“任意到任意模态”多模态大语言模型：NExT-GPT
+
+> 未来的MLLM研究一定是朝着越来越通用的generalist方向发展，所以会包含尽可能多的模态、功能。NExT-GPT是这个领域的目前最为开创性的一项工作之一，其首次引入了“任意到任意模态”MLLM的概念。这种架构实现了强大的功能，为未来的多模态大语言模型的研究方向奠定了基础。
+
+![NExT-GPT](assets/NExT-GPT-screen.png)
+
+
+> 本次课程关于多模态大语言模型的代码实践部分，将会以NExT-GPT的代码为目标，进行深入浅出的分析和实践。
+
+[NExT-GPT Project](https://next-gpt.github.io/)
+
+[NExT-GPT GitHub 代码库](https://github.com/NExT-GPT/NExT-GPT)
+
+
+
+
+### 2.2 代码框架浏览
+
+
 ```
-### 1.4 模型准备
-从[[Model](https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct)]下载Qwen2-VL-7B模型权重。
-
-## 1.5 有监督微调代码准备
-本教程采用LLaMa-Factory对Qwen2-VL-7B进行有监督微调，因此先从[[Code](https://github.com/hiyouga/LLaMA-Factory/)]下载源码。
-
-## 2.GUI智能体构建
-### 2.1 数据预处理
-将以下代码存储为get_sharpgpt.py，并向其填出Kairos_train.json和预计存储处理后的训练集json的路径，然后运行该文件。
-```python
-import json
-
-
-with open('', 'r', encoding='utf-8') as f:
-    data = json.load(f)
-
-
-preprocessed_data = []
-for item in data:
-    task = item.get("task", "")
-    previous_actions = item.get("previous_actions", "") 
-    image_path = item.get("image_path","")
-    prompt_text = f"""
-    You are now operating in Executable Language Grounding mode. Your goal is to help users accomplish tasks by suggesting executable actions that best fit their needs and give a score. Your skill set includes both basic and custom actions:
-
-    1. Basic Actions
-    Basic actions are standardized and available across all platforms. They provide essential functionality and are defined with a specific format, ensuring consistency and reliability. 
-    Basic Action 1: CLICK 
-        - purpose: Click at the specified position.
-        - format: CLICK <point>[[x-axis, y-axis]]</point>
-        - example usage: CLICK <point>[[101, 872]]</point>
-
-    Basic Action 2: TYPE
-        - purpose: Enter specified text at the designated location.
-        - format: TYPE [input text]
-        - example usage: TYPE [Shanghai shopping mall]
-
-    Basic Action 3: SCROLL
-        - Purpose: SCROLL in the specified direction.
-        - Format: SCROLL [direction (UP/DOWN/LEFT/RIGHT)]
-        - Example Usage: SCROLL [UP]
-
-    2. Custom Actions
-    Custom actions are unique to each user's platform and environment. They allow for flexibility and adaptability, enabling the model to support new and unseen actions defined by users. These actions extend the functionality of the basic set, making the model more versatile and capable of handling specific tasks.
-
-    Custom Action 1: PRESS_BACK
-        - purpose: Press a back button to navigate to the previous screen.
-        - format: PRESS_BACK
-        - example usage: PRESS_BACK
-
-    Custom Action 2: PRESS_HOME
-        - purpose: Press a home button to navigate to the home page.
-        - format: PRESS_HOME
-        - example usage: PRESS_HOME
-
-    Custom Action 3: ENTER
-        - purpose: Press the enter button.
-        - format: ENTER
-        - example usage: ENTER
-
-    Custom Action 4: IMPOSSIBLE
-        - purpose: Indicate the task is impossible.
-        - format: IMPOSSIBLE
-        - example usage: IMPOSSIBLE
-
-    In most cases, task instructions are high-level and abstract. Carefully read the instruction and action history, then perform reasoning to determine the most appropriate next action.
-
-    And I hope you evaluate your action to be scored, giving it a score from 1 to 5. 
-    A higher score indicates that you believe this action is more likely to accomplish the current goal for the given screenshot.
-    1 means you believe this action definitely cannot achieve the goal.
-    2 means you believe this action is very unlikely to achieve the goal.
-    3 means you believe this action has a certain chance of achieving the goal.
-    4 means you believe this action is very likely to achieve the goal.
-    5 means you believe this action will definitely achieve the goal.
-
-    And your final goal, previous actions, and associated screenshot are as follows:
-    Final goal: {task}
-    previous actions: {previous_actions}
-    screenshot:<image>
-    Your output must strictly follow the format below, and especially avoid using unnecessary quotation marks or other punctuation marks.(where osatlas action must be one of the action formats I provided and score must be 1 to 5):
-    action:
-    score:
-    """
-
-    action = item.get("osatlas_action", "")
-    score = item.get("score", "")
-    preprocessed_item = {
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt_text,
-            },
-            {
-                "role": "assistant",
-                "content": f"action: {action}\nscore:{score}",
-            }
-        ],
-        "images":[image_path]
-    }
-    preprocessed_data.append(preprocessed_item)
-
-
-with open('', 'w', encoding='utf-8') as f:
-    json.dump(preprocessed_data, f, ensure_ascii=False, indent=4)
+├── figures
+├── data
+│   ├── T-X_pair_data  
+│   │   ├── audiocap                      # text-autio pairs data
+│   │   │   ├── audios                    # audio files
+│   │   │   └── audiocap.json             # the audio captions
+│   │   ├── cc3m                          # text-image paris data
+│   │   │   ├── images                    # image files
+│   │   │   └── cc3m.json                 # the image captions
+│   │   └── webvid                        # text-video pairs data
+│   │   │   ├── videos                    # video files
+│   │   │   └── webvid.json               # the video captions
+│   ├── IT_data                           # instruction data
+│   │   ├── T+X-T_data                    # text+[image/audio/video] to text instruction data
+│   │   │   ├── alpaca                    # textual instruction data
+│   │   │   ├── llava                     # visual instruction data
+│   │   ├── T-T+X                         # synthesized text to text+[image/audio/video] instruction data
+│   │   └── MosIT                         # Modality-switching Instruction Tuning instruction data
+├── code
+│   ├── config
+│   │   ├── base.yaml                     # the model configuration 
+│   │   ├── stage_1.yaml                  # enc-side alignment training configuration
+│   │   ├── stage_2.yaml                  # dec-side alignment training configuration
+│   │   └── stage_3.yaml                  # instruction-tuning configuration
+│   ├── dsconfig
+│   │   ├── stage_1.json                  # deepspeed configuration for enc-side alignment training
+│   │   ├── stage_2.json                  # deepspeed configuration for dec-side alignment training
+│   │   └── stage_3.json                  # deepspeed configuration for instruction-tuning training
+│   ├── datast
+│   │   ├── base_dataset.py
+│   │   ├── catalog.py                    # the catalog information of the dataset
+│   │   ├── cc3m_datast.py                # process and load text-image pair dataset
+│   │   ├── audiocap_datast.py            # process and load text-audio pair dataset
+│   │   ├── webvid_dataset.py             # process and load text-video pair dataset
+│   │   ├── T+X-T_instruction_dataset.py  # process and load text+x-to-text instruction dataset
+│   │   ├── T-T+X_instruction_dataset.py  # process and load text-to-text+x instruction dataset
+│   │   └── concat_dataset.py             # process and load multiple dataset
+│   ├── model                     
+│   │   ├── ImageBind                     # the code from ImageBind Model
+│   │   ├── common
+│   │   ├── anyToImageVideoAudio.py       # the main model file
+│   │   ├── agent.py
+│   │   ├── modeling_llama.py
+│   │   ├── custom_ad.py                  # the audio diffusion 
+│   │   ├── custom_sd.py                  # the image diffusion
+│   │   ├── custom_vd.py                  # the video diffusion
+│   │   ├── layers.py                     # the output projection layers
+│   │   └── ...  
+│   ├── scripts
+│   │   ├── train.sh                      # training NExT-GPT script
+│   │   └── app.sh                        # deploying demo script
+│   ├── header.py
+│   ├── process_embeddings.py             # precompute the captions embeddings
+│   ├── train.py                          # training
+│   ├── inference.py                      # inference
+│   ├── demo_app.py                       # deploy Gradio demonstration 
+│   └── ...
+├── ckpt                           
+│   ├── delta_ckpt                        # tunable NExT-GPT params
+│   │   ├── nextgpt         
+│   │   │   ├── 7b_tiva_v0                # the directory to save the log file
+│   │   │   │   ├── log                   # the logs
+│   └── ...       
+│   ├── pretrained_ckpt                   # frozen params of pretrained modules
+│   │   ├── imagebind_ckpt
+│   │   │   ├──huge                       # version
+│   │   │   │   └──imagebind_huge.pth
+│   │   ├── vicuna_ckpt
+│   │   │   ├── 7b_v0                     # version
+│   │   │   │   ├── config.json
+│   │   │   │   ├── pytorch_model-00001-of-00002.bin
+│   │   │   │   ├── tokenizer.model
+│   │   │   │   └── ...
+├── LICENCE.md
+├── README.md
+└── requirements.txt
 ```
-经过该步骤，我们将OS-Kairos的训练集成功转化为符合sharpgpt格式的数据，便于进行下一步训练，数据预处理完成。
-## 2.2 有监督微调
-在上一步中，我们已经得到适配LLaMa-Factory训练的格式的Kairos数据集。然后我们要修改LLaMa-Factory以注册数据集和配置训练信息。
-首先修改data/dataset_info.json，添加如下内容注册数据集：
-```json
-"Karios" :{
-  "file_name": "Karios_qwenscore.json",
-  "formatting": "sharegpt",
-  "columns": {
-    "messages": "messages",
-    "images": "images"
-  },
-  "tags": {
-    "role_tag": "role",
-    "content_tag": "content",
-    "user_tag": "user",
-    "assistant_tag": "assistant"
-  }
-},   
-```
-继续修改/examples/train_full/qwen2vl_full_sft.yaml来进行配置训练信息：
-```yaml
-### model
-model_name_or_path: 
-stage: sft
-do_train: true
-finetuning_type: full
-deepspeed: examples/deepspeed/ds_z3_config.json
 
-### dataset
-dataset: Karios
-template: qwen2_vl
-cutoff_len: 4096
-max_samples: 9999999
-#max_samples: 999
-overwrite_cache: true
-preprocessing_num_workers: 4
 
-### output
-output_dir: 
-logging_steps: 10
-save_steps: 60000
-plot_loss: true
-overwrite_output_dir: true
+### 2.3 安装环境
 
-### train
-per_device_train_batch_size: 2
-gradient_accumulation_steps: 2
-learning_rate: 1.0e-5
-num_train_epochs: 5.0
-lr_scheduler_type: cosine
-warmup_ratio: 0.1
-bf16: true
-ddp_timeout: 180000000
+请先克隆仓库并安装所需的环境，可以通过运行以下命令来完成环境的安装：
 
-### eval
-val_size: 0.1
-per_device_eval_batch_size: 1
-eval_strategy: steps
-eval_steps: 20000
 ```
-以上是一个示例配置，model_name_or_path是Qwen2-VL-7B的路径，output_dir是存放断点和log的路径。
-配置好后即可配置推理，示例命令行：
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 FORCE_TORCHRUN=1 llamafactory-cli train examples/train_full/qwen2vl_full_sft.yaml
-```
-此处至少要使用3张80GB的A100计算资源。
+conda env create -n nextgpt python=3.8
 
-## 3.OS-Kairos推理验证
-训练完毕后，我们即可进行推理，推理也有很多种方法可以选择，可以自行通过transformers库和torch库构建推理代码，也可以采用LLaMa-Factory进行一键式推理，以下演示如何LLaMa-Factory进行一键式推理。
-首先要修改/examples/inference/qwen2_vl.yaml，一个示例如下
-```yaml
-model_name_or_path: 
-template: qwen2_vl
+conda activate nextgpt
+
+# CUDA 11.6
+conda install pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.6 -c pytorch -c nvidia
+
+git clone https://github.com/NExT-GPT/NExT-GPT.git
+cd NExT-GPT
+
+pip install -r requirements.txt
 ```
-其中model_name_or_path是训练后的断点路径。
-然后即可通过
+
+
+
+
+### 2.4 系统推理上手
+
+
+#### 2.4.1 加载预训练的NExT-GPT模型checkpoint
+
+- **步骤1**：加载`冻结参数`。[NExT-GPT](https://github.com/NExT-GPT/NExT-GPT) 是基于以下现有模型或模块进行训练的, 请按照以下说明准备checkpoint。
+    - `ImageBind` 是统一的图像/视频/音频编码器。可以从[此处](https://dl.fbaipublicfiles.com/imagebind/imagebind_huge.pth)下载预训练检查点，版本为`huge`。然后，将`imagebind_huge.pth`文件放置在[[./ckpt/pretrained_ckpt/imagebind_ckpt/huge]](ckpt/pretrained_ckpt/imagebind_ckpt/)。
+    - `Vicuna`：首先按照[[这里]](ckpt/pretrained_ckpt/prepare_vicuna.md)的说明准备LLaMA。然后将预训练模型放置在[[./ckpt/pretrained_ckpt/vicuna_ckpt/]](ckpt/pretrained_ckpt/vicuna_ckpt/)。
+    - `Image Diffusion` 用于生成图像。NExT-GPT 使用版本为`v1-5`的[Stable Diffusion](https://huggingface.co/runwayml/stable-diffusion-v1-5)。(_代码里将会自动下载_)
+    - `Audio Diffusion` 用于生成音频内容。NExT-GPT 使用版本为`l-full`的[AudioLDM](https://github.com/haoheliu/AudioLDM)。(_代码里将会自动下载_)
+    - `Video Diffusion` 用于视频生成。我们使用版本为`v2_576w`的[ZeroScope](https://huggingface.co/cerspense/zeroscope_v2_576w)。(_代码里将会自动下载_)
+
+- **步骤2**：加载`可调参数`。
+
+将NExT-GPT系统放置在[[./ckpt/delta_ckpt/nextgpt/7b_tiva_v0]](./ckpt/delta_ckpt/nextgpt/7b_tiva_v0)。可以选择 1) 使用自己训练的参数，或者 2) 从[Huggingface](https://huggingface.co/ChocoWu/nextgpt_7b_tiva_v0)下载预训练好的checkpoint。
+
+
+#### 2.4.2 Gradio Demo部署
+
+完成检查点加载后，您可以通过以下方式在本地运行演示：
+```angular2html
+cd ./code
+bash scripts/app.sh
 ```
-CUDA_VISIBLE_DEVICES=0 FORCE_TORCHRUN=1 llamafactory-cli webchat examples/inference/qwen2_vl.yaml
+指定关键参数如下：
+- `--nextgpt_ckpt_path`：预训练NExT-GPT参数的路径。
+
+
+
+#### 2.4.3 测试示例实践
+
+目前的版本能够支持文字、图像、视频、声音四种模态下任意组合的输入，并任务组合模态的输出。
+并且支持多轮上下文交互。
+
+请各位自行运行测试效果。
+
+- **Case-1**：输入T+I，输出T+A
+
+![case1](assets/T+I-T+A.png)
+
+
+- **Case-2**：输入T+V，输出T+A
+
+![case2](assets/T+V-T+A.png)
+
+
+- **Case-3**：输入T+I，输出T+I+V
+
+![case3](assets/T+I-T+I+V.png)
+
+
+- **Case-4**：输入T，输出T+I+V+A
+
+![case4](assets/T-T+I+V+A.png)
+
+
+
+
+
+
+
+### 2.5 系统训练过程
+
+
+#### 2.5.1 数据准备
+
+请下载以下用于模型训练的数据集：
+
+A) T-X对数据
+  - ***文本-图像*** 对的 `CC3M` 数据，请按照此说明操作[[here]](./data/T-X_pair_data/cc3m/prepare.md)。然后将数据放置在[[./data/T-X_pair_data/cc3m]](./data/T-X_pair_data/cc3m)。
+  - ***文本-视频*** 对的 `WebVid` 数据，参考[[instruction]](./data/T-X_pair_data/webvid/prepare.md)。文件应保存在[[./data/T-X_pair_data/webvid]](./data/T-X_pair_data/webvid)。
+  - ***文本-音频*** 对的 `AudioCap` 数据，参考[[instruction]](./data/T-X_pair_data/audiocap/prepare.md)。将数据保存在[[./data/T-X_pair_data/audiocap]](./data/T-X_pair_data/audiocap)。
+
+B) 指令微调数据
+  - T+X-T
+    - ***视觉指令数据*** (from `LLaVA`)，从[此处](https://github.com/haotian-liu/LLaVA/blob/main/docs/Data.md)下载，并将其放置在[[./data/IT_data/T+X-T_data/llava]](./data/IT_data/T+X-T_data/llava/)。
+    - ***文本指令数据*** (from `Alpaca`)，从[此处](https://github.com/tatsu-lab/stanford_alpaca)下载，并将其放置在[[./data/IT_data/T+X-T_data/alpaca/]](data/IT_data/T+X-T_data/alpaca/)。
+    - ***视频指令数据*** (from `VideoChat`)，从[此处](https://github.com/OpenGVLab/InternVideo/tree/main/Data/instruction_data)下载，并将其放置在[[./data/IT_data/T+X-T_data/videochat/]](data/IT_data/T+X-T_data/videochat/)。
+
+    注意：下载数据集后，请运行 `preprocess_dataset.py` 对数据集进行预处理，使其格式统一。
+  - T-X+T (T2M)
+    - `T-X+T` 指令数据集（T2M）保存在[[./data/IT_data/T-T+X_data]](./data/IT_data/T-T+X_data)。
+   
+  - MosIT
+    - 从[这里](./data/IT_data/MosIT_data/)获得下载数据的说明。最终将其放置在[[./data/IT_data/MosIT_data/]](./data/IT_data/MosIT_data/)。
+
+
+
+
+#### 2.5.2 嵌入向量准备
+
+在NExT-GPT的解码端的对齐训练中，我们最小化Signal Token和captions的表征之间的距离。为了保证系统的高效率，节省时间和内存成本，我们使用各个扩散模型中的文本编码器预计算图像、音频和视频标题的文本嵌入。
+
+在进行NExT-GPT的训练之前，请运行以下命令，生成的 `embedding` 文件将保存在[[./data/embed]](./data/embed)。
 ```
-进行一键式推理，你可以自己拿出OS-Kairos测试集的图片，或者个人手机的截图，结合get_sharpgpt.py中格式的文本prompt输入给智能体，OS-Karios推理后会给出它认为当前应该进行的action和对于这个action的置信度分数。置信度分数越低，则当前指令越超出OS-Kairos的能力边界，需要人类介入来进行人机交互。
+cd ./code/
+python process_embeddings.py ../data/T-X_pair_data/cc3m/cc3m.json image ../data/embed/ runwayml/stable-diffusion-v1-5
+```
+
+
+参数说明：
+- args[1]: 标题文件路径；
+- args[2]: 模态，可以是 `image`、`video` 和 `audio`；
+- args[3]: 嵌入向量文件保存路径；
+- args[4]: 相应的预训练扩散模型名称。
+
+
+
+
+#### 2.5.3 三阶段式训练
+
+
+首先参考基础配置文件[[./code/config/base.yaml]](./code/config/base.yaml)，了解整个模块的基本系统设置。
+
+然后运行以下脚本开始NExT-GPT的训练：
+```
+cd ./code
+bash scripts/train.sh
+```
+
+指定命令如下：
+```
+deepspeed --include localhost:0 --master_addr 127.0.0.1 --master_port 28459 train.py \
+    --model nextgpt \
+    --stage 1\
+    --save_path  ../ckpt/delta_ckpt/nextgpt/7b_tiva_v0/\
+    --log_path ../ckpt/delta_ckpt/nextgpt/7b_tiva_v0/log/
+```
+其中关键参数：
+- `--include`: `localhost:0` 表示深度速度中的 GPT cuda 编号 `0`。
+- `--stage`: 训练阶段。
+- `--save_path`: 存储训练后的 delta 权重的目录。此目录将自动创建。
+- `--log_path`: 存储日志文件的目录。
+
+
+
+NExT-GPT的整个训练分为3个步骤：
+
+- **步骤1**：编码端LLM为中心的多模态对齐。该阶段训练***输入投影层***，同时冻结ImageBind、LLM和输出投影层。
+  
+  只需运行上述的`train.sh`脚本，并设置：`--stage 1`
+  
+  还请参考运行配置文件[[./code/config/stage_1.yaml]](./code/config/stage_1.yaml)和deepspeed配置文件[[./code/dsconfig/stage_1.yaml]](./code/dsconfig/stage_1.yaml)以获取更多逐步配置信息。
+
+  请注意，在此步骤中使用的数据集包含在`dataset_name_list`中，并且数据集名称必须与[[./code/dataset/catalog.py]](./code/dataset/catalog.py)中的定义精确匹配。
+
+
+
+- **步骤2**：解码端指令跟随对齐。该阶段训练***输出投影层***，同时冻结ImageBind、LLM和输入投影层。
+
+  只需运行上述的`train.sh`脚本，并设置：`--stage 2`
+
+  还请参考运行配置文件[[./code/config/stage_2.yaml]](./code/config/stage_2.yaml)和deepspeed配置文件[[./code/dsconfig/stage_2.yaml]](./code/dsconfig/stage_2.yaml)以获取更多逐步配置信息。
+
+
+
+- **步骤3**：指令调整。该阶段对指令数据集进行以下调整：1) 通过LoRA调整***LLM***，2) 调整***输入投影层***和3) 调整***输出投影层***。
+
+  只需运行上述的`train.sh`脚本，并设置：`--stage 3`
+
+  还请参考运行配置文件[[./code/config/stage_3.yaml]](./code/config/stage_3.yaml)和deepspeed配置文件[[./code/dsconfig/stage_3.yaml]](./code/dsconfig/stage_3.yaml)以获取更多逐步配置信息。
