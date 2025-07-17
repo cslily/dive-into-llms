@@ -46,12 +46,12 @@ https://github.com/huggingface/transformers/tree/main/examples/pytorch/text-clas
 #### 1.3 处理好的工程包（演示代码和数据）
 （1）解耦可定制版本（关键模块解耦，方便理解，可自定义数据加载、模型结构、评价指标等）
 
-[TextClassificationCustom下载链接](https://drive.google.com/file/d/12cVWpYbhKVLTqOEKbeyj_4WcFzLd_KJX/view?usp=drive_link)
+[TextClassificationCustom下载链接](https://pan.quark.cn/s/00dae5c2b128)
 
 （2）默认集成版本（代码较
 为丰富、复杂，一般直接超参数调用，略有开发门槛）
 
-[TextClassification下载链接](https://drive.google.com/file/d/10jnqREVDddmOUH4sbHvl-LiPn6uxj57B/view?usp=drive_link)
+[TextClassification下载链接](https://pan.quark.cn/s/9d0510f1c98d)
 
 
 ### 2. 基于解耦版本进行定制开发（最小可行性产品MVP）
